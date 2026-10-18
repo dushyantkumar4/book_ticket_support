@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const ticketSchema = new mongoose.Schema(
@@ -54,21 +53,10 @@ const ticketSchema = new mongoose.Schema(
       default: "General Inquiry",
     },
 
-    aiCategory: {
-      type: String,
-      default: null,
-    },
-
     priority: {
       type: String,
       enum: ["Critical", "High", "Medium", "Low"],
       default: "Medium",
-    },
-
-    aiPriority: {
-      type: String,
-      enum: ["Critical", "High", "Medium", "Low"],
-      default: null,
     },
 
     status: {
@@ -90,6 +78,22 @@ const ticketSchema = new mongoose.Schema(
       select: false,
     },
 
+    aiCategory: {
+      type: String,
+      default: null,
+    },
+
+    aiPriority: {
+      type: String,
+      enum: ["Critical", "High", "Medium", "Low"],
+      default: null,
+    },
+
+    aiReasoning: {
+      type: String,
+      default: "",
+    },
+
     aiDraft: {
       type: String,
       default: "",
@@ -107,7 +111,7 @@ const ticketSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 ticketSchema.index({ status: 1, priority: 1, createdAt: 1 });
