@@ -8,6 +8,7 @@ import {
 } from "@/api/messageApi";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import useTicketSocket from "@/hooks/useTicketSocket";
 
 export default function AuthorTicketDetails() {
   const { ticketId } = useParams();
@@ -57,6 +58,50 @@ export default function AuthorTicketDetails() {
       setSending(false);
     }
   };
+
+  const handleNewMessage = useCallback(
+  (payload) => {
+    if (payload.ticketId !== ticketId) return;
+
+    setMessages((previousMessages) => {
+      const newMessage = payload.message;
+
+      // Avoid adding the same message twice.
+      if (
+        previousMessages.some(
+          (message) => message._id === newMessage._id
+        )
+      ) {
+        return previousMessages;
+      }
+
+      return [...previousMessages, newMessage];
+    });
+  },
+  [ticketId, setMessages]
+);
+
+const handleStatusChange = useCallback(
+  (payload) => {
+    if (payload.ticketId !== ticketId) return;
+
+    setTicket((previousTicket) => {
+      if (!previousTicket) return previousTicket;
+
+      return {
+        ...previousTicket,
+        status: payload.status,
+      };
+    });
+  },
+  [ticketId, setTicket]
+);
+
+// Register the handlers with your Socket.IO hook.
+useTicketSocket({
+  onMessage: handleNewMessage,
+  onStatus: handleStatusChange,
+});
 
   if (loading) return <p>Loading conversation...</p>;
 
