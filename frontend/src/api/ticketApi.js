@@ -2,6 +2,11 @@
 import api from "@/api/api";
 
 export const getTickets = async (params = {}) => {
+  const response = await api.get("/admin/tickets", { params });
+  return response.data;
+};
+
+export const getMyTickets = async (params = {}) => {
   const response = await api.get("/tickets/mine", { params });
   return response.data;
 };
@@ -24,8 +29,17 @@ export const updateTicketStatus = async (ticketId, status) => {
   return response.data;
 };
 
+export const updateTicketClassification = async (ticketId, changes) => {
+  const response = await api.patch(`/admin/tickets/${ticketId}/classification`, changes);
+  return response.data;
+};
+export const updateTicketAssignment = async (ticketId) => {
+  const response = await api.patch(`/admin/tickets/${ticketId}/assign`, { assignedTo: "self" });
+  return response.data;
+};
+
 export const assignTicketToMe = async (ticketId) => {
-  const response = await api.patch(`/tickets/${ticketId}/assign`);
+  const response = await api.patch(`/admin/tickets/${ticketId}/assign`, { assignedTo: "self" });
   return response.data;
 };
 export const regenerateTicketAI = async (ticketId) => {
