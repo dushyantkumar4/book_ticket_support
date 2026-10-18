@@ -11,22 +11,8 @@ import CreateTicket from "./pages/author/CreateTicket";
 import AuthorTicketDetails from "./pages/author/AuthorTicketDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 import useAuthStore from "./store/authStore";
-
-const AdminDashboard = () => (
-  <div className="space-y-2">
-    <h1 className="text-2xl font-bold">Dashboard</h1>
-    <p className="text-muted-foreground">Your admin overview will go here.</p>
-  </div>
-);
-
-const TicketDetailsPlaceholder = () => (
-  <div className="space-y-2">
-    <h1 className="text-2xl font-bold">Ticket details</h1>
-    <p className="text-muted-foreground">
-      The ticket conversation and reply panel will be added next.
-    </p>
-  </div>
-);
+import AdminTicketDetails from "./pages/admin/AdminTicketDetails";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 const App = () => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
@@ -68,10 +54,7 @@ const App = () => {
       >
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="tickets" element={<AdminTickets />} />
-        <Route
-          path="tickets/:ticketId"
-          element={<TicketDetailsPlaceholder />}
-        />
+        <Route path="tickets/:ticketId" element={<AdminTicketDetails />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
