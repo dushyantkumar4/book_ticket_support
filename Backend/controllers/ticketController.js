@@ -276,6 +276,13 @@ export const addTicketMessage = async (req, res, next) => {
       "name role",
     );
 
+    const io = req.app.get("io");
+    if (io) {
+      const payload = { ticketId: ticket._id.toString(), message: populatedMessage };
+      io.to(`author:${ticket.author.toString()}`).emit("ticket:message", payload);
+      io.to("admins").emit("ticket:message", payload);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Reply added successfully.",
@@ -348,6 +355,9 @@ export const addInternalNote = async (req, res, next) => {
 
 export async function regenerateTicketAI(req, res, next) {
   try {
+    if (!isValidId(req.params.ticketId)) {
+      return res.status(400).json({ success: false, message: "Invalid ticket ID." });
+    }
     const result = await runTicketAI(req.params.ticketId);
 
     const ticket = await Ticket.findById(req.params.ticketId).select(
@@ -360,7 +370,8 @@ export async function regenerateTicketAI(req, res, next) {
 
     if (!result.success) {
       return res.status(503).json({
-        message: "AI is temporarily unavailable. You can reply manually.",
+        message: result.reason || "AI is temporarily unavailable. You can reply manually.",
+        code: result.code,
         aiStatus: "Failed",
       });
     }
