@@ -1,11 +1,10 @@
-
 import OpenAI from "openai";
 import knowledgeBase from "../data/knowledgeBase.js";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   timeout: 15000,
-  maxRetries: 1,
+  maxRetries: 100,
 });
 
 const categories = [
