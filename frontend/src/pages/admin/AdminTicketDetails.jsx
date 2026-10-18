@@ -1,11 +1,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getTicketById } from "@/api/ticketApi";
-import { regenerateTicketAI } from "@/api/ticketApi";
-import { sendTicketReply } from "@/api/messageApi";
+import { getTicketById, regenerateTicketAI, updateTicketClassification, updateTicketStatus, updateTicketAssignment } from "@/api/ticketApi";
+import { addInternalNote, sendTicketReply } from "@/api/messageApi";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import useTicketSocket from "@/hooks/useTicketSocket";
 import {
   Card,
   CardContent,
@@ -23,12 +24,27 @@ export default function AdminTicketDetails() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [note, setNote] = useState("");
+  const [messages, setMessages] = useState([]);
+
+  useTicketSocket({
+    onMessage: (payload) => {
+      if (payload.ticketId !== ticketId || !payload.message) return;
+      setMessages((current) => current.some((message) => message._id === payload.message._id)
+        ? current
+        : [...current, payload.message]);
+    },
+    onStatus: (payload) => {
+      if (payload.ticketId === ticketId) setTicket((current) => current ? { ...current, status: payload.status } : current);
+    },
+  });
 
   useEffect(() => {
     const loadTicket = async () => {
       try {
         const data = await getTicketById(ticketId);
         setTicket(data.ticket);
+        setMessages(data.messages ?? []);
         setDraft(data.ticket.aiDraft || "");
       } catch (err) {
         setError(
@@ -41,6 +57,11 @@ export default function AdminTicketDetails() {
 
     loadTicket();
   }, [ticketId]);
+
+  const saveClassification = async (changes) => {
+    try { const data = await updateTicketClassification(ticketId, changes); setTicket(data.ticket); }
+    catch (err) { setError(err.response?.data?.message || "Could not update ticket."); }
+  };
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -85,6 +106,7 @@ export default function AdminTicketDetails() {
     try {
       await sendTicketReply(ticketId, draft.trim());
       setDraft("");
+      const refreshed = await getTicketById(ticketId); setMessages(refreshed.messages ?? []);
       setNotice("Reply sent successfully.");
     } catch (err) {
       setError(
@@ -117,6 +139,13 @@ export default function AdminTicketDetails() {
         </p>
       </div>
 
+      <Card><CardContent className="grid gap-4 p-4 sm:grid-cols-4">
+        <label className="space-y-1 text-sm">Category<Select value={ticket.category} onValueChange={(category) => saveClassification({ category })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Royalty & Payments", "ISBN & Metadata Issues", "Printing & Quality", "Distribution & Availability", "Book Status & Production Updates", "General Inquiry"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></label>
+        <label className="space-y-1 text-sm">Priority<Select value={ticket.priority} onValueChange={(priority) => saveClassification({ priority })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Critical", "High", "Medium", "Low"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></label>
+        <label className="space-y-1 text-sm">Status<Select value={ticket.status} onValueChange={async (status) => { try { const data = await updateTicketStatus(ticketId, status); setTicket(data.ticket); } catch (err) { setError(err.response?.data?.message || "Could not update status."); } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Open", "In Progress", "Resolved", "Closed"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></label>
+        <div className="space-y-1 text-sm">Assignment<p>{ticket.assignedTo?.name || "Unassigned"}</p><Button size="sm" variant="outline" onClick={async () => { try { const data = await updateTicketAssignment(ticketId); setTicket(data.ticket); } catch (err) { setError(err.response?.data?.message || "Could not assign ticket."); } }}>Assign to me</Button></div>
+      </CardContent></Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Author's Message</CardTitle>
@@ -127,6 +156,11 @@ export default function AdminTicketDetails() {
           </p>
         </CardContent>
       </Card>
+
+      <Card><CardHeader><CardTitle>Conversation and internal notes</CardTitle></CardHeader><CardContent className="space-y-3">
+        {messages.map((message) => <div key={message._id} className={`rounded border p-3 ${message.visibility === "internal" ? "bg-amber-50" : "bg-white"}`}><p className="text-xs text-muted-foreground">{message.sender?.name || "Support"} · {message.visibility}</p><p className="whitespace-pre-wrap text-sm">{message.body}</p></div>)}
+        <form className="space-y-2" onSubmit={async (event) => { event.preventDefault(); try { await addInternalNote(ticketId, note); setNote(""); const data = await getTicketById(ticketId); setMessages(data.messages ?? []); } catch (err) { setError(err.response?.data?.message || "Could not save note."); } }}><Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Internal note (only admins can see this)" rows={3} /><Button type="submit" variant="outline" disabled={!note.trim()}>Add internal note</Button></form>
+      </CardContent></Card>
 
       <Card>
         <CardHeader>
