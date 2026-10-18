@@ -7,4 +7,8 @@ const SOCKET_URL =
 export const socket = io(SOCKET_URL, {
   withCredentials: true,
   autoConnect: false,
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 500,
+  reconnectionDelayMax: 5000,
 });
