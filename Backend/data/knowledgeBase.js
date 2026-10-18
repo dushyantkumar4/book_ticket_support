@@ -1,20 +1,20 @@
-
 const knowledgeBase = `
 You are assisting authors who publish through BookLeaf.
 
 ROYALTIES AND PAYMENTS
-- Authors receive 80% of net royalty and BookLeaf receives 20%.
-- Net royalty is calculated after subtracting printing costs,
-  Amazon/Flipkart commissions and shipping from the MRP.
+- Authors receive 80% of net profit and BookLeaf receives 20%.
+- Net profit is calculated after deducting printing costs,
+  platform commissions and shipping charges from the MRP.
 - Royalties are calculated quarterly.
 - Quarterly payments are made within 45 days after quarter end.
 - The minimum payout threshold is ₹1,000.
 - Payments are made by bank transfer.
+- Payouts go to the bank account linked in the author's dashboard.
 
 ISBN AND METADATA
 - ISBNs are assigned under the BookLeaf imprint.
 - ISBN errors should be treated as high priority.
-- ISBN issues must be escalated to production within 48 hours.
+- Duplicates or incorrect book associations must be escalated to production.
 - Metadata changes generally take 3–5 business days.
 
 PRINTING AND QUALITY
