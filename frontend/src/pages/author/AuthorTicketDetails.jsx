@@ -2,10 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTicketById } from "@/api/ticketApi";
-import {
-  getTicketMessages,
-  sendTicketReply,
-} from "@/api/messageApi";
+import { sendTicketReply } from "@/api/messageApi";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import useTicketSocket from "@/hooks/useTicketSocket";
@@ -20,13 +17,10 @@ export default function AuthorTicketDetails() {
   const [error, setError] = useState("");
 
   const loadConversation = useCallback(async () => {
-    const [ticketData, messageData] = await Promise.all([
-      getTicketById(ticketId),
-      getTicketMessages(ticketId),
-    ]);
+    const ticketData = await getTicketById(ticketId);
 
     setTicket(ticketData.ticket);
-    setMessages(messageData.messages ?? []);
+    setMessages(ticketData.messages ?? []);
   }, [ticketId]);
 
   useEffect(() => {
@@ -65,6 +59,7 @@ export default function AuthorTicketDetails() {
 
     setMessages((previousMessages) => {
       const newMessage = payload.message;
+      if (newMessage.visibility === "internal") return previousMessages;
 
       // Avoid adding the same message twice.
       if (
