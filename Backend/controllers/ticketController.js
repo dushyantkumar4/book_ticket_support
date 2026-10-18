@@ -1,8 +1,8 @@
-
 import mongoose from "mongoose";
 import Book from "../models/Book.js";
 import Ticket from "../models/Ticket.js";
 import TicketMessage from "../models/TicketMessage.js";
+import { runTicketAI } from "../services/ticketAIService.js";
 
 const isValidId = (id) => mongoose.isValidObjectId(id);
 
@@ -86,9 +86,7 @@ export const createTicket = async (req, res, next) => {
     if (
       attachments !== undefined &&
       (!Array.isArray(attachments) ||
-        !attachments.every(
-          (item) => typeof item === "string" && item.trim()
-        ))
+        !attachments.every((item) => typeof item === "string" && item.trim()))
     ) {
       return res.status(400).json({
         success: false,
@@ -109,6 +107,46 @@ export const createTicket = async (req, res, next) => {
       status: "Open",
       aiStatus: "Pending",
     });
+    // Socket.IO instance initialized in server.js.
+    const io = req.app.get("io");
+
+    // Notify connected admins that a new ticket was created.
+    if (io) {
+      io.to("admins").emit("ticket:new", {
+        ticketId: ticket._id.toString(),
+        ticketNumber: ticket.ticketNumber,
+        subject: ticket.subject,
+        category: ticket.category,
+        priority: ticket.priority,
+        status: ticket.status,
+        createdAt: ticket.createdAt,
+      });
+    }
+
+    // Start AI in the background. Do not wait for it before
+    // responding to the author.
+    runTicketAI(ticket._id)
+      .then((result) => {
+        if (!io) return;
+
+        if (result.success) {
+          io.to("admins").emit("ticket:ai-completed", {
+            ticketId: ticket._id.toString(),
+            aiCategory: result.result.category,
+            aiPriority: result.result.priority,
+            aiStatus: "Completed",
+          });
+        } else {
+          io.to("admins").emit("ticket:ai-failed", {
+            ticketId: ticket._id.toString(),
+            aiStatus: "Failed",
+          });
+        }
+      })
+      .catch((error) => {
+        // Last-resort protection against unexpected failures.
+        console.error("Background ticket AI error:", error.message);
+      });
 
     return res.status(201).json({
       success: true,
@@ -233,8 +271,10 @@ export const addTicketMessage = async (req, res, next) => {
       messageType: "reply",
     });
 
-    const populatedMessage = await TicketMessage.findById(message._id)
-      .populate("sender", "name role");
+    const populatedMessage = await TicketMessage.findById(message._id).populate(
+      "sender",
+      "name role",
+    );
 
     return res.status(201).json({
       success: true,
@@ -291,8 +331,10 @@ export const addInternalNote = async (req, res, next) => {
       messageType: "note",
     });
 
-    const populatedNote = await TicketMessage.findById(note._id)
-      .populate("sender", "name role");
+    const populatedNote = await TicketMessage.findById(note._id).populate(
+      "sender",
+      "name role",
+    );
 
     return res.status(201).json({
       success: true,
@@ -303,3 +345,35 @@ export const addInternalNote = async (req, res, next) => {
     next(error);
   }
 };
+
+export async function regenerateTicketAI(req, res, next) {
+  try {
+    const result = await runTicketAI(req.params.ticketId);
+
+    const ticket = await Ticket.findById(req.params.ticketId).select(
+      "+aiDraft",
+    );
+
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket not found." });
+    }
+
+    if (!result.success) {
+      return res.status(503).json({
+        message: "AI is temporarily unavailable. You can reply manually.",
+        aiStatus: "Failed",
+      });
+    }
+
+    return res.json({
+      message: "AI analysis completed.",
+      aiStatus: ticket.aiStatus,
+      aiCategory: ticket.aiCategory,
+      aiPriority: ticket.aiPriority,
+      aiReasoning: ticket.aiReasoning,
+      aiDraft: ticket.aiDraft,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
