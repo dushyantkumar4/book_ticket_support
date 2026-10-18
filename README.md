@@ -30,9 +30,9 @@ Real-time ticket updates and notifications
 
 Links
 
-GitHub Repository: Add GitHub URL
+GitHub Repository: https://github.com/dushyantkumar4/book_ticket_support
 
-Live Demo: Add Live URL
+Live Demo: https://book-ticket-support.vercel.app/login
 
 Getting Started
 
