@@ -1,8 +1,9 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getTickets } from "@/api/ticketApi";
+import { getMyTickets } from "@/api/ticketApi";
 import { Button } from "@/components/ui/button";
+import useTicketSocket from "@/hooks/useTicketSocket";
 import {
   Card,
   CardContent,
@@ -23,8 +24,13 @@ export default function AuthorTickets() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  useTicketSocket({
+    onStatus: ({ ticketId, status }) => setTickets((current) => current.map((ticket) => ticket._id === ticketId ? { ...ticket, status } : ticket)),
+    onMessage: ({ ticketId }) => setTickets((current) => current.map((ticket) => ticket._id === ticketId ? { ...ticket, hasNewReply: true } : ticket)),
+  });
+
   useEffect(() => {
-    getTickets()
+    getMyTickets()
       .then((data) => setTickets(data.tickets ?? []))
       .catch((err) => {
         setError(
