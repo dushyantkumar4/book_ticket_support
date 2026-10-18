@@ -1,13 +1,32 @@
-import OpenAI from "openai";
-import knowledgeBase from "../data/knowledgeBase.js";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  timeout: 15000,
-  maxRetries: 100,
+import { GoogleGenAI } from "@google/genai";
+
+// Use the existing knowledge-base text from your project here.
+const BOOKLEAF_KNOWLEDGE_BASE = `
+BookLeaf publishes and distributes books for authors.
+
+Royalty split: 80% author and 20% BookLeaf.
+Net royalties are calculated from MRP minus printing costs,
+marketplace commissions, and shipping.
+Royalties are paid quarterly within 45 days after quarter end.
+The minimum payout threshold is INR 1,000.
+
+BookLeaf handles cover design, typesetting, ISBN assignment,
+printing, distribution, and royalties.
+Printing usually takes 5-7 business days.
+New distribution listings usually take 7-10 business days.
+Metadata changes usually take 3-5 business days.
+Distribution sync may take 24-48 hours.
+
+Use only the information in this knowledge base.
+If information is missing, say the support team needs to verify it.
+`;
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
-const categories = [
+const CATEGORIES = [
   "Royalty & Payments",
   "ISBN & Metadata Issues",
   "Printing & Quality",
@@ -16,90 +35,88 @@ const categories = [
   "General Inquiry",
 ];
 
-const priorities = ["Critical", "High", "Medium", "Low"];
+const PRIORITIES = ["Critical", "High", "Medium", "Low"];
 
-export async function analyzeTicket({ subject, description }) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("AI service is not configured.");
+export const analyzeTicket = async ({ subject, description }) => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is missing from backend .env");
   }
 
-  const response = await client.responses.create({
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-    store: false,
-    instructions: `
-You are BookLeaf's support triage assistant.
+  const response = await ai.models.generateContent({
+    model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
 
-Use the supplied BookLeaf knowledge base to draft a helpful reply.
-Classify the ticket into exactly one allowed category and priority.
+    contents: `
+You are a support assistant for BookLeaf.
 
-Priority guidance:
-- Critical: urgent risk requiring immediate human attention.
-- High: ISBN errors, serious printing defects, or time-sensitive
-  payment or production problems.
-- Medium: a normal issue that needs support investigation.
-- Low: general questions and non-urgent requests.
+Analyze this support ticket using the supplied knowledge base.
 
-Do not mark every complaint as Critical.
-Do not claim an action was completed when it has not been completed.
-Do not invent account records or specific payment dates.
-The draft is a suggestion for an admin to review, not an automatic reply.
-
-Return the required structured output only.
-`,
-    input: `
-BOOKLEAF KNOWLEDGE BASE:
-${knowledgeBase}
+KNOWLEDGE BASE:
+${BOOKLEAF_KNOWLEDGE_BASE}
 
 TICKET SUBJECT:
 ${subject}
 
 TICKET DESCRIPTION:
 ${description}
+
+Return:
+- category: one exact category from the allowed categories
+- priority: Critical, High, Medium, or Low
+- reasoning: brief explanation for the classification
+- draft: a professional, empathetic reply to the author
+
+Allowed categories:
+${CATEGORIES.join(", ")}
+
+Priority guidance:
+- Critical: urgent issue requiring immediate escalation
+- High: significant issue, such as an ISBN error affecting production
+- Medium: normal support request
+- Low: general information request
+
+Do not invent policies, payment dates, or guarantees.
+If information is uncertain, say the team will verify it.
+The draft must address the author's actual issue.
 `,
-    text: {
-      format: {
-        type: "json_schema",
-        name: "ticket_analysis",
-        strict: true,
-        schema: {
-          type: "object",
-          properties: {
-            category: {
-              type: "string",
-              enum: categories,
-            },
-            priority: {
-              type: "string",
-              enum: priorities,
-            },
-            reasoning: {
-              type: "string",
-            },
-            draft: {
-              type: "string",
-            },
+
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          category: {
+            type: "STRING",
+            enum: CATEGORIES,
           },
-          required: ["category", "priority", "reasoning", "draft"],
-          additionalProperties: false,
+          priority: {
+            type: "STRING",
+            enum: PRIORITIES,
+          },
+          reasoning: { type: "STRING" },
+          draft: { type: "STRING" },
         },
+        required: ["category", "priority", "reasoning", "draft"],
       },
     },
   });
 
-  if (!response.output_text) {
-    throw new Error("AI returned an empty response.");
+  const text = response.text;
+
+  if (!text) {
+    throw new Error("Gemini returned an empty response");
   }
 
-  const result = JSON.parse(response.output_text);
+  const result = JSON.parse(text);
 
-  // Basic defensive validation before saving to the database.
+  // Validate the response before saving it to MongoDB.
   if (
-    !categories.includes(result.category) ||
-    !priorities.includes(result.priority) ||
-    !result.draft.trim()
+    !CATEGORIES.includes(result.category) ||
+    !PRIORITIES.includes(result.priority) ||
+    typeof result.reasoning !== "string" ||
+    typeof result.draft !== "string"
   ) {
-    throw new Error("AI returned an invalid ticket analysis.");
+    throw new Error("Gemini returned an invalid ticket analysis");
   }
 
   return result;
-}
+};
