@@ -1,4 +1,3 @@
-
 import Ticket from "../models/Ticket.js";
 import { analyzeTicket } from "./aiService.js";
 
@@ -34,6 +33,8 @@ export async function runTicketAI(ticketId) {
         aiStatus: "Failed",
         aiDraft: "",
       },
+    }).catch((dbError) => {
+      console.error("Failed to save AI status:", dbError.message);
     });
 
     return { success: false, reason: "AI analysis failed" };
