@@ -2,7 +2,7 @@
 import api from "@/api/api";
 
 export const getMyBooks = async () => {
-  const response = await api.get("/books/my-books");
+  const response = await api.get("/books/mine");
   return response.data;
 };
 
