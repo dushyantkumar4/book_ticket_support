@@ -190,6 +190,11 @@ export const updateTicketStatus = async (req, res, next) => {
 
     await ticket.save();
 
+    const io = req.app.get("io");
+    if (io) io.to(`author:${ticket.author.toString()}`).emit("ticket:status", {
+      ticketId: ticket._id.toString(), status: ticket.status,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Ticket status updated successfully.",
@@ -226,10 +231,8 @@ export const assignTicket = async (req, res, next) => {
     }
 
     if (assignedTo === "self") {
-      assignedTo = req.user._id;
-    }
-
-    if (assignedTo === null) {
+      ticket.assignedTo = req.user._id;
+    } else if (assignedTo === null) {
       ticket.assignedTo = null;
     } else {
       if (
@@ -269,4 +272,21 @@ export const assignTicket = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+export const updateTicketClassification = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { category, priority } = req.body;
+    if (!mongoose.isValidObjectId(ticketId)) return res.status(400).json({ success: false, message: "Invalid ticket ID." });
+    if (category !== undefined && !allowedCategories.includes(category)) return res.status(400).json({ success: false, message: "Invalid ticket category." });
+    if (priority !== undefined && !allowedPriorities.includes(priority)) return res.status(400).json({ success: false, message: "Invalid ticket priority." });
+    if (category === undefined && priority === undefined) return res.status(400).json({ success: false, message: "Provide a category or priority." });
+    const ticket = await Ticket.findById(ticketId);
+    if (!ticket) return res.status(404).json({ success: false, message: "Ticket not found." });
+    if (category !== undefined) ticket.category = category;
+    if (priority !== undefined) ticket.priority = priority;
+    await ticket.save();
+    return res.json({ success: true, ticket });
+  } catch (error) { next(error); }
 };
