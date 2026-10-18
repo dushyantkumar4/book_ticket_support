@@ -5,8 +5,7 @@ import {
   createTicket,
   getTicketById,
   addTicketMessage,
-  addInternalNote,
-  regenerateTicketAI
+  addInternalNote
 } from "../controllers/ticketController.js";
 import {
   protect,
@@ -33,11 +32,4 @@ router.post(
   allowRoles("admin"),
   addInternalNote
 );
-router.post(
-  "/:ticketId/ai-draft",
-  protect,
-  allowRoles("admin"),
-  regenerateTicketAI
-);
-
 export default router;
