@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, IndianRupee, MessagesSquare, Clock3 } from "lucide-react";
 import { getMyBooks } from "@/api/bookApi";
-import { getTickets } from "@/api/ticketApi";
+import { getMyTickets } from "@/api/ticketApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import useAuthStore from "@/store/authStore";
@@ -20,7 +20,7 @@ export default function AuthorDashboard() {
       try {
         const [bookData, ticketData] = await Promise.all([
           getMyBooks(),
-          getTickets(),
+          getMyTickets(),
         ]);
 
         setBooks(bookData.books ?? []);
