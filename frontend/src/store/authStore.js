@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { loginUser, getCurrentUser, logoutUser } from "@/api/authApi";
+import { socket } from "@/lib/socket";
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -48,6 +49,7 @@ const useAuthStore = create((set) => ({
     try {
       await logoutUser();
     } finally {
+      socket.disconnect();
       set({
         user: null,
         isLoading: false,
@@ -58,6 +60,7 @@ const useAuthStore = create((set) => ({
 
   // Clear user information
   clearAuth: () => {
+    socket.disconnect();
     set({
       user: null,
       isLoading: false,
